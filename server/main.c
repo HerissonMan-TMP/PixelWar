@@ -11,8 +11,34 @@
 
 #define LG_MESSAGE 256
 
+//#define hauteur = 40
+//#define largeur = 80
+
+typedef struct user{
+    int SocketFD;
+    char IP[20];
+    int Port;
+}user;
+
+typedef struct pixel{
+    int r;
+    int g;
+    int b;
+}pixel;
+
 int main()
 {
+    pixel tab[40][80];
+    //pixel *tab = (pixel *)malloc(hauteur * largeur * sizeof(pixel));
+    pixel pixel;
+    for (int i = 0; i < 40; i++)
+    {
+        for (int j = 0; j < 80; j++)
+        {
+            tab[i][j] = pixel;
+        }
+    }
+    
     int socketEcoute;
     struct sockaddr_in pointDeRencontreLocal;
     socklen_t longueurAdresse;

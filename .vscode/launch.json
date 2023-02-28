@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/victoralexandre/Library/CloudStorage/OneDrive-yncréa/Boulot/ISEN/CIN 2/Réseau/Projets/S2/Code/PixelWar",
+      "program": "/Users/victoralexandre/Library/CloudStorage/OneDrive-yncréa/Boulot/ISEN/CIN 2/Réseau/Projets/S2/Code/PixelWar/build/Debug/outDebug"
+    }
+  ]
+}
