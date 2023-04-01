@@ -9,9 +9,35 @@
 
 #define LG_MESSAGE 256
 
-int main()
+int main(int argc, char* argv[])
 {
-    int descripteurSocket;
+    char *ip = NULL;
+    int port = 0;
+    
+    if (argc < 3) {
+        printf("Usage: %s -s IP [-p PORT]\n", argv[0]);
+        return 1;
+    }
+    
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-s") == 0 && i+1 < argc) {
+            ip = argv[i+1];
+            i++;
+        } else if (strcmp(argv[i], "-p") == 0 && i+1 < argc) {
+            port = atoi(argv[i+1]);
+            i++;
+        }
+    }
+    
+    if (ip == NULL) {
+        printf("IP address not specified.\n");
+        return 1;
+    }
+    
+    printf("Connecting to %s:%d...\n", ip, port);
+
+    int descripteurSocket, quitter = 0;
+    char choix[25] = {0}, QuitChar[10] = "/quit";
     struct sockaddr_in pointDeRencontreDistant;
     socklen_t longueurAdresse;
     char messageEnvoi[LG_MESSAGE]; /* le message de la couche Application ! */
@@ -39,9 +65,9 @@ int main()
     // Renseigne la structure sockaddr_in avec les informations du serveur distant
     pointDeRencontreDistant.sin_family = PF_INET;
     // On choisit le numéro de port d’écoute du serveur
-    pointDeRencontreDistant.sin_port = htons(IPPORT_USERRESERVED); // = 5000
+    pointDeRencontreDistant.sin_port = htons(port); // = 5000
     // On choisit l’adresse IPv4 du serveur
-    inet_aton("127.0.0.1", &pointDeRencontreDistant.sin_addr); // à modifier selon ses besoins
+    inet_aton(ip, &pointDeRencontreDistant.sin_addr); // à modifier selon ses besoins
 
     // Débute la connexion vers le processus serveur distant
     if ((connect(descripteurSocket, (struct sockaddr *)&pointDeRencontreDistant, longueurAdresse)) == -1)
@@ -59,44 +85,66 @@ int main()
     memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
 
     // Envoie un message au serveur
-    sprintf(messageEnvoi, "Victor ALEXANDRE\n");
-    ecrits = write(descripteurSocket, messageEnvoi, strlen(messageEnvoi)); // message à TAILLE variable
-    switch (ecrits)
+    while (quitter != 1)
     {
-    case -1: /* une erreur ! */
-        perror("write");
-        close(descripteurSocket);
-        exit(-3);
-    case 0: /* la socket est fermée */
-        fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
-        close(descripteurSocket);
-        return 0;
-    default: /* envoi de n octets */
-        printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+        printf("\n----- Client -----\n\n");
+        printf("/getMatrix - ");
+        printf("/getSize - ");
+        printf("/getLimits - ");
+        printf("/getVersion - ");
+        printf("/getWaitTime - ");
+        printf("/setPixel");
+        printf("\n/quit\n");
+
+        printf("Message a transmettre : ");
+        //scanf("%s", choix);
+        fgets(choix, 25, stdin);
+        if (strcmp(choix, QuitChar) == 0) {
+            quitter = 1;
+        } 
+        else {
+            strcpy(messageEnvoi, choix);
+            printf("\nDEBUG - %s\n", messageEnvoi);
+        }
+
+
+        ecrits = write(descripteurSocket, messageEnvoi, strlen(messageEnvoi)); // message à TAILLE variable
+
+        switch (ecrits)
+        {
+        case -1: /* une erreur ! */
+            perror("write");
+            close(descripteurSocket);
+            exit(-3);
+        case 0: /* la socket est fermée */
+            fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
+            close(descripteurSocket);
+            return 0;
+        default: /* envoi de n octets */
+            printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+        }
+
+        memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
+
+        /* Reception des données du serveur */
+        lus = read(descripteurSocket, messageRecu, LG_MESSAGE * sizeof(char)); /* attend un message de TAILLE fixe */
+        
+        switch (lus)
+        {
+        case -1: /* une erreur ! */
+            perror("read");
+            close(descripteurSocket);
+            exit(-4);
+        case 0: /* la socket est fermée */
+            fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
+            close(descripteurSocket);
+            return 0;
+        default: /* réception de n octets */
+            printf("Message reçu du serveur : %s (%d octets)\n\n", messageRecu, lus);
+        }
+
+        memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
     }
-
-
-    /* Reception des données du serveur */
-    lus = read(descripteurSocket, messageRecu, LG_MESSAGE * sizeof(char)); /* attend un message de TAILLE fixe */
-
-    switch (lus)
-    {
-    case -1: /* une erreur ! */
-        perror("read");
-        close(descripteurSocket);
-        exit(-4);
-    case 0: /* la socket est fermée */
-        fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
-        close(descripteurSocket);
-        return 0;
-    default: /* réception de n octets */
-        printf("Message reçu du serveur : %s (%d octets)\n\n", messageRecu, lus);
-    }
-
-    //--- Fin de l’étape n°4 !
-
-    // On ferme la ressource avant de quitter
-    close(descripteurSocket);
 
 return 0;
 }
