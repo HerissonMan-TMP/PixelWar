@@ -184,8 +184,8 @@ int main(int argc, char* argv[])
                     removeUser(users, pollFDs[i].fd);
                     return 0;
                 default: /* réception de n octets */
-                    printf("Message reçu : %s (%d octets) depuis %s:%d\n\n", messageRecu, lus, inet_ntoa(pointDeRencontreDistant.sin_addr), (int) ntohs(pointDeRencontreDistant.sin_port));
-                
+                    //printf("Message reçu : %s (%d octets) depuis %s:%d\n\n", messageRecu, lus, inet_ntoa(pointDeRencontreDistant.sin_addr), (int) ntohs(pointDeRencontreDistant.sin_port));
+                    printf("%s\n\n", messageRecu); 
                     analyse(pollFDs[i].fd, messageRecu, 80, 40, rate_limit, tab);
 
                     memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
@@ -248,7 +248,6 @@ void analyse(int socketDialogue, char* messageRecu, int largeur, int hauteur, in
             }
             //printf("\n");
         }
-        printf("%s\n", matrixStr);
         sprintf(messageEnvoi, matrixStr);
         ecrits = write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
         switch (ecrits) {
@@ -394,15 +393,33 @@ void analyse(int socketDialogue, char* messageRecu, int largeur, int hauteur, in
         }
         char messageEnvoi[LG_MESSAGE];
         memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
-        char *waitTimeStr = malloc(7 * sizeof(char));
-        sprintf(waitTimeStr, "%d", 0);
-        sprintf(messageEnvoi, waitTimeStr);
+        
+        if (pixelX < 0 || pixelX >= 80 || pixelY < 0 || pixelY >= 39) {
+            sprintf(messageEnvoi, "11");
+        } else {
+            sprintf(messageEnvoi, "00");
+            tab[pixelX][pixelY].b64 = b64Color;
+        }
+        
         ecrits = write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
-        printf("%d x %d : %s\n", pixelX, pixelY, b64Color);
-        printf("---\n");
-        tab[pixelX][pixelY].b64 = b64Color;
-        printf("%s\n", tab[pixelX][pixelY]);
-        printf("---\n");
+
+        switch (ecrits) {
+        case -1: /* une erreur ! */
+            perror("write");
+            close(socketDialogue);
+            exit(-3);
+        case 0: /* la socket est fermée */
+            fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
+            close(socketDialogue);
+            return;
+        default: /* envoi de n octets */
+            printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+        }
+    } else {
+        char messageEnvoi[LG_MESSAGE];
+        memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
+        sprintf(messageEnvoi, "10");
+        ecrits = write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
         switch (ecrits) {
         case -1: /* une erreur ! */
             perror("write");

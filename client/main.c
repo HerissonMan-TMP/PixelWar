@@ -99,13 +99,11 @@ int main(int argc, char* argv[])
         printf("Message a transmettre : ");
         //scanf("%s", choix);
         fgets(choix, 25, stdin);
-        printf("CHOIX: %d\n", strcmp(choix, QuitChar));
         if (strncmp(choix, QuitChar, 5) == 0) {
             quitter = 1;
         } 
         else {
             strcpy(messageEnvoi, choix);
-            printf("\nDEBUG - %s\n", messageEnvoi);
         }
 
 
@@ -122,7 +120,8 @@ int main(int argc, char* argv[])
             close(descripteurSocket);
             return 0;
         default: /* envoi de n octets */
-            printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+            //printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+            break;
         }
 
         memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
@@ -141,7 +140,8 @@ int main(int argc, char* argv[])
             close(descripteurSocket);
             return 0;
         default: /* réception de n octets */
-            printf("Message reçu du serveur : %s (%d octets)\n\n", messageRecu, lus);
+            //printf("Message reçu du serveur : %s (%d octets)\n\n", messageRecu, lus);
+            printf("%s\n\n", messageRecu);
         }
 
         memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
