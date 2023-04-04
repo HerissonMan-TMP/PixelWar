@@ -7,7 +7,7 @@
 #include <netinet/in.h> /* pour struct sockaddr_in */
 #include <arpa/inet.h>  /* pour htons et inet_aton */
 
-#define LG_MESSAGE 256
+#define LG_MESSAGE 20000
 
 int main(int argc, char* argv[])
 {
@@ -88,18 +88,19 @@ int main(int argc, char* argv[])
     while (quitter != 1)
     {
         printf("\n----- Client -----\n\n");
-        printf("/getMatrix - ");
-        printf("/getSize - ");
-        printf("/getLimits - ");
-        printf("/getVersion - ");
-        printf("/getWaitTime - ");
-        printf("/setPixel");
-        printf("\n/quit\n");
+        printf("/getMatrix\n");
+        printf("/getSize\n");
+        printf("/getLimits\n");
+        printf("/getVersion\n");
+        printf("/getWaitTime\n");
+        printf("/setPixel\n");
+        printf("/quit\n");
 
         printf("Message a transmettre : ");
         //scanf("%s", choix);
         fgets(choix, 25, stdin);
-        if (strcmp(choix, QuitChar) == 0) {
+        printf("CHOIX: %d\n", strcmp(choix, QuitChar));
+        if (strncmp(choix, QuitChar, 5) == 0) {
             quitter = 1;
         } 
         else {

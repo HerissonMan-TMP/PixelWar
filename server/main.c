@@ -10,14 +10,19 @@
 
 #define PORT IPPORT_USERRESERVED // = 5000
 #define NB_CLIENTS 10
-#define LG_MESSAGE 256
+#define LG_MESSAGE 20000
 
 #define VERSION 1
 
+#ifndef BASE64_H
+#define BASE64_H
+
+void base64_decode(char *src, char dest[256]);
+
+#endif /* BASE64_H */
+
 typedef struct Pixel {
-    int r;
-    int g;
-    int b;
+    char *b64;
 } Pixel;
 
 typedef struct User {
@@ -26,14 +31,15 @@ typedef struct User {
 
 void addUser(User users[NB_CLIENTS], User u);
 void removeUser(User users[NB_CLIENTS], int socketFD);
-void analyse(int socketDialogue, char* messageRecu, int largeur, int hauteur, int limite);
+void analyse(int socketDialogue, char* messageRecu, int largeur, int hauteur, int limite, Pixel tab[][largeur]);
+static unsigned int raw_base64_decode(unsigned char *in, unsigned char *out, int strict, int *err);
+unsigned char *spc_base64_decode(unsigned char *buf, size_t *len, int strict, int *err);
 
 int main(int argc, char* argv[])
 {
-    int port = 8080;
-    int surface[2] = {640, 480};
-    int largeur = 640;
-    int hauteur = 480;
+    int port = 5000;
+    int largeur = 80;
+    int hauteur = 40;
     int rate_limit = 100;
 
     int option;
@@ -58,17 +64,12 @@ int main(int argc, char* argv[])
     printf("Surface: %dx%d\n", largeur, hauteur);
     printf("Rate limit: %d\n", rate_limit);
 
-    Pixel tab[640][480];
-    //pixel *tab = (pixel *)malloc(hauteur * largeur * sizeof(pixel));
-    Pixel pixel;
-    for (int i = 0; i < 480; i++)
-    {
-        for (int j = 0; j < 640; j++)
-        {
-            pixel.r = 0;
-            pixel.g = 0;
-            pixel.b = 0;
-            tab[i][j] = pixel;
+    Pixel tab[40][80];
+
+    // Modification des éléments dans la matrice
+    for (int i = 0; i < hauteur; i++) {
+        for (int j = 0; j < largeur; j++) {
+            tab[i][j].b64 = "////";
         }
     }
 
@@ -87,8 +88,7 @@ int main(int argc, char* argv[])
     struct sockaddr_in pointDeRencontreDistant;
     char messageEnvoi[LG_MESSAGE]; /* le message de la couche Application ! */
     char messageRecu[LG_MESSAGE];  /* le message de la couche Application ! */
-    int ecrits, lus;               /* nb d’octets ecrits et lus */
-    int retour;
+    int lus;               /* nb d’octets ecrits et lus */
 
     // Crée un socket de communication
     socketEcoute = socket(PF_INET, SOCK_STREAM, 0); /* 0 indique que l’on utilisera le
@@ -186,7 +186,7 @@ int main(int argc, char* argv[])
                 default: /* réception de n octets */
                     printf("Message reçu : %s (%d octets) depuis %s:%d\n\n", messageRecu, lus, inet_ntoa(pointDeRencontreDistant.sin_addr), (int) ntohs(pointDeRencontreDistant.sin_port));
                 
-                    analyse(pollFDs[i].fd, messageRecu, largeur, hauteur, rate_limit);
+                    analyse(pollFDs[i].fd, messageRecu, 80, 40, rate_limit, tab);
 
                     memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
                 }
@@ -194,70 +194,16 @@ int main(int argc, char* argv[])
         }
     }
 
-
-    // //--- Début de l’étape n°7 :
-    // // boucle d’attente de connexion : en théorie, un serveur attend indéfiniment !
-    // while (1)
-    // {
-    //     memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
-    //     memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
-    //     printf("Attente d’une demande de connexion (quitter avec Ctrl-C)\n\n");
-    //     // c’est un appel bloquant
-    //     socketDialogue = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, &longueurAdresse);
-
-    //     if (socketDialogue < 0)
-    //     {
-    //         perror("accept");
-    //         close(socketDialogue);
-    //         close(socketEcoute);
-    //         exit(-4);
-    //     }
-
-    //     // On réceptionne les données du client (cf. protocole)
-    //     lus = read(socketDialogue, messageRecu, LG_MESSAGE * sizeof(char)); // ici appel bloquant
-
-    //     switch (lus)
-    //     {
-    //     case -1: /* une erreur ! */
-    //         perror("read");
-    //         close(socketDialogue);
-    //         exit(-5);
-    //     case 0: /* la socket est fermée */
-    //         fprintf(stderr, "La socket a été fermée par le client !\n\n");
-    //         close(socketDialogue);
-    //         return 0;
-    //     default: /* réception de n octets */
-    //         printf("Message reçu : %s (%d octets) depuis %s:%d\n\n", messageRecu, lus, inet_ntoa(pointDeRencontreDistant.sin_addr), (int) ntohs(pointDeRencontreDistant.sin_port));
-    //     }
-
-    //     // On envoie des données vers le client (cf. protocole)
-    //     sprintf(messageEnvoi, "ok\n");
-    //     ecrits = write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
-    //     switch (ecrits)
-    //     {
-    //     case -1: /* une erreur ! */
-    //         perror("write");
-    //         close(socketDialogue);
-    //         exit(-6);
-    //     case 0: /* la socket est fermée */
-    //         fprintf(stderr, "La socket a été fermée par le client !\n\n");
-    //         close(socketDialogue);
-    //         return 0;
-    //     default: /* envoi de n octets */
-    //         printf("Message %s envoyé (%d octets)\n\n", messageEnvoi, ecrits);
-    //     }
-    //     // On ferme la socket de dialogue et on se replace en attente ...
-    //     close(socketDialogue);
-    // }
-    // //--- Fin de l’étape n°7 !
-
     // On ferme la ressource avant de quitter
     close(socketEcoute);
+
+    for (int i = 0; i < hauteur; i++) {
+        free(tab[i]);
+    }
+    free(tab);
     
     return 0;
-}
-
-
+} 
 
 void addUser(User users[NB_CLIENTS], User u) {
     for (int i = 0; i < NB_CLIENTS; i++) {
@@ -284,13 +230,26 @@ void removeUser(User users[NB_CLIENTS], int socketFD) {
     }
 }
 
-void analyse(int socketDialogue, char* messageRecu, int largeur, int hauteur, int limite) {
+void analyse(int socketDialogue, char* messageRecu, int largeur, int hauteur, int limite, Pixel tab[][largeur]) {
+    static const unsigned char base64_table[65] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
     int ecrits;
 
     if (!strncmp(messageRecu, "/getMatrix", 10)) {
         char messageEnvoi[LG_MESSAGE];
         memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
-        sprintf(messageEnvoi, "matrice\n");
+        //sprintf(messageEnvoi, "");
+        // Affichage des éléments de la matrice
+        char *matrixStr = malloc(20000 * sizeof(char));
+        for (int i = 0; i < hauteur; i++) {
+            for (int j = 0; j < largeur; j++) {
+                //printf("%s ", tab[i][j].b64);
+                strncat(matrixStr, tab[i][j].b64, 4);
+            }
+            //printf("\n");
+        }
+        printf("%s\n", matrixStr);
+        sprintf(messageEnvoi, matrixStr);
         ecrits = write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
         switch (ecrits) {
         case -1: /* une erreur ! */
@@ -307,16 +266,16 @@ void analyse(int socketDialogue, char* messageRecu, int largeur, int hauteur, in
     } else if (!strncmp(messageRecu, "/getSize", 8)) {
         char messageEnvoi[LG_MESSAGE];
         memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
-        char msg[15];
+        char *sizeStr = malloc(20000 * sizeof(char));
         char *lengthMatrixStr = malloc(7 * sizeof(char));
         char *heightMatrixStr = malloc(7 * sizeof(char));
         sprintf(lengthMatrixStr, "%d", largeur);
         sprintf(heightMatrixStr, "%d", hauteur);
-        strcat(msg, lengthMatrixStr);
-        strcat(msg, "x");
-        strcat(msg, heightMatrixStr);
-        sprintf(messageEnvoi, msg);
-        sprintf(msg, "");
+        strcat(sizeStr, lengthMatrixStr);
+        strcat(sizeStr, "x");
+        strcat(sizeStr, heightMatrixStr);
+        sprintf(messageEnvoi, sizeStr);
+        sprintf(sizeStr, "");
         ecrits = write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
         switch (ecrits) {
         case -1: /* une erreur ! */
@@ -386,6 +345,107 @@ void analyse(int socketDialogue, char* messageRecu, int largeur, int hauteur, in
             return;
         default: /* envoi de n octets */
             printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+        }
+    } else if (!strncmp(messageRecu, "/setPixel", 9)) {
+        char *pch;
+        char *saveptr;
+        pch = strtok_r(messageRecu," ",&saveptr);
+        int compteurTours = 0;
+        int pixelX, pixelY;
+        char *b64Color;
+        while (pch != NULL)
+        {
+            if (compteurTours == 1) {
+                char *pixelCoordinate;
+                char *tok2 = strdup(pch);
+                
+                pixelCoordinate = strtok(tok2, "x");
+
+                int compteurPixel = 0;
+                while(pixelCoordinate != NULL) {
+                    if (compteurPixel == 0) {
+                        pixelX = atoi(pixelCoordinate);
+                    } else if (compteurPixel == 1) {
+                        pixelY = atoi(pixelCoordinate);
+                    }
+
+                    pixelCoordinate = strtok(NULL, "x");
+                    compteurPixel++;
+                }
+
+                free(tok2);
+
+            } else if (compteurTours == 2) {
+                // Chaine en base64 à décoder
+                pch[strlen(pch)-1] = '\0';
+                b64Color = strdup(pch);
+
+                char* new_string;
+                if (pch != NULL) {
+                    new_string = strdup(pch);
+                }
+                const char* base64string = new_string;
+
+                strcpy(base64string, pch);
+            }
+
+            compteurTours++;
+            pch = strtok_r(NULL, " ", &saveptr);
+        }
+        char messageEnvoi[LG_MESSAGE];
+        memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
+        char *waitTimeStr = malloc(7 * sizeof(char));
+        sprintf(waitTimeStr, "%d", 0);
+        sprintf(messageEnvoi, waitTimeStr);
+        ecrits = write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
+        printf("%d x %d : %s\n", pixelX, pixelY, b64Color);
+        printf("---\n");
+        tab[pixelX][pixelY].b64 = b64Color;
+        printf("%s\n", tab[pixelX][pixelY]);
+        printf("---\n");
+        switch (ecrits) {
+        case -1: /* une erreur ! */
+            perror("write");
+            close(socketDialogue);
+            exit(-3);
+        case 0: /* la socket est fermée */
+            fprintf(stderr, "La socket a été fermée par le serveur !\n\n");
+            close(socketDialogue);
+            return;
+        default: /* envoi de n octets */
+            printf("Message %s envoyé avec succès (%d octets)\n\n", messageEnvoi, ecrits);
+        }
+    }
+}
+
+void base64_decode(char *src, char dest[256])
+{
+    char binary[64][7] = {
+        "000000", "000001", "000010", "000011",
+        "000100", "000101", "000110", "000111",
+        "001000", "001001", "001010", "001011",
+        "001100", "001101", "001110", "001111",
+        "010000", "010001", "010010", "010011",
+        "010100", "010101", "010110", "010111",
+        "011000", "011001", "011010", "011011",
+        "011100", "011101", "011110", "011111",
+        "100000", "100001", "100010", "100011",
+        "100100", "100101", "100110", "100111",
+        "101000", "101001", "101010", "101011",
+        "101100", "101101", "101110", "101111",
+        "110000", "110001", "110010", "110011",
+        "110100", "110101", "110110", "110111",
+        "111000", "111001", "111010", "111011",
+        "111100", "111101", "111110", "111111"
+    };
+
+    char base64_chars[64] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    for (int i = 0; i < strlen(src); i++) {
+        for (int j = 0; j < 64; j++) {
+            if (src[i] == base64_chars[j]) {
+                strcat(dest, binary[j]);
+            }
         }
     }
 }
